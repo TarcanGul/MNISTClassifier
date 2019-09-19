@@ -1,4 +1,4 @@
-
+import math
 import os
 import numpy as np
 import tensorflow as tf
@@ -40,11 +40,11 @@ class NeuralNetwork_2Layer():
 
     # Activation function.
     def __sigmoid(self, x):
-        pass   #TODO: implement
+        return 1 / (1 + math.exp(-x))
 
     # Activation prime function.
     def __sigmoidDerivative(self, x):
-        pass   #TODO: implement
+        return math.exp(-x) / math.pow(1 + math.exp(-x), 2)
 
     # Batch generator for mini-batches. Not randomized.
     def __batchGenerator(self, l, n):
@@ -90,10 +90,14 @@ def getRawData():
     print("Shape of yTest dataset: %s." % str(yTest.shape))
     return ((xTrain, yTrain), (xTest, yTest))
 
+def reduceRange(raw):
+    return float(raw / 255.0)
+
 
 
 def preprocessData(raw):
-    ((xTrain, yTrain), (xTest, yTest)) = raw            #TODO: Add range reduction here (0-255 ==> 0.0-1.0).
+    reduced_value = reduceRange(raw)
+    ((xTrain, yTrain), (xTest, yTest)) = reduced_value        
     yTrainP = to_categorical(yTrain, NUM_CLASSES)
     yTestP = to_categorical(yTest, NUM_CLASSES)
     print("New shape of xTrain dataset: %s." % str(xTrain.shape))
