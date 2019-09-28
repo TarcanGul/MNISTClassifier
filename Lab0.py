@@ -21,8 +21,8 @@ NUM_CLASSES = 10
 IMAGE_SIZE = 784
 
 # Use these to set the algorithm to use.
-ALGORITHM = "guesser"
-#ALGORITHM = "custom_net"
+#ALGORITHM = "guesser"
+ALGORITHM = "custom_net"
 #ALGORITHM = "tf_net"
 
 
@@ -51,9 +51,37 @@ class NeuralNetwork_2Layer():
         for i in range(0, len(l), n):
             yield l[i : i + n]
 
+    def __getError(self, predicted_y, expected_y):
+        return 0.5 * (math.pow(predicted_y, 2) - math.pow(expected_y, 2))
+
     # Training with backpropagation.
     def train(self, xVals, yVals, epochs = 100000, minibatches = True, mbs = 100):
-        pass                                   #TODO: Implement backprop. allow minibatches. mbs should specify the size of each minibatch.
+        #TODO: Implement backprop. allow minibatches. mbs should specify the size of each minibatch.
+        #CurrentLayer will keep track of the layer we are in.
+        
+        for i in range(epochs):
+            forwardPassResult = self.predict(xVals)
+            errors = []
+            l2_errors = []
+            l1_errors = []
+            l2_deltas = []
+            l1_deltas = []
+            for value in forwardPassResult:
+                errors.append(keras.losses.mean_squared_error(value, yVals[i]))
+                currentError = yVals[i] - value
+                l2_errors.append(currentError)
+                l2_deltas.append(currentError * self.__sigmoidDerivative(value))
+                currentError = np.dot(np.array(l2_deltas), self.W2)
+                l1_errors.append(currentError)
+                l1_deltas.append(currentError * self.__sigmoidDerivative(value))
+            #Find adjustments.
+            l1_adjust = np.dot(self.W1, np.array(l1_deltas))
+            l2_adjust = np.dot(self.W2, np.array(l2_deltas))
+            for i in range(0, len(self.W1)):
+                self.W1[i] = self.W1[i] + l1_adjust[i]
+            
+            for i in range(0, len(self.W2)):
+                self.W2[i] = self.W2[i] + l2_adjust[i]
 
     # Forward pass.
     def __forward(self, input):
@@ -91,9 +119,12 @@ def getRawData():
     return ((xTrain, yTrain), (xTest, yTest))
 
 def reduceRange(raw):
-    return float(raw / 255.0)
-
-
+    MULTIPLIER = 1.0 / 255.0
+    xTrain = raw[0][0]
+    yTrain = raw[0][1]
+    xTest = raw[1][0]
+    yTest = raw[1][1]
+    return ((xTrain*MULTIPLIER, yTrain*MULTIPLIER), (xTest*MULTIPLIER, yTest*MULTIPLIER))
 
 def preprocessData(raw):
     reduced_value = reduceRange(raw)
@@ -113,9 +144,9 @@ def trainModel(data):
     if ALGORITHM == "guesser":
         return None   # Guesser has no model, as it is just guessing.
     elif ALGORITHM == "custom_net":
-        print("Building and training Custom_NN.")
-        print("Not yet implemented.")                   #TODO: Write code to build and train your custon neural net.
-        return None
+        model = NeuralNetwork_2Layer(100, 10, 10)
+        model.train(xTrain, yTrain)                #TODO: Write code to build and train your custon neural net.
+        return model
     elif ALGORITHM == "tf_net":
         print("Building and training TF_NN.")
         print("Not yet implemented.")                   #TODO: Write code to build and train your keras neural net.
@@ -129,9 +160,8 @@ def runModel(data, model):
     if ALGORITHM == "guesser":
         return guesserClassifier(data)
     elif ALGORITHM == "custom_net":
-        print("Testing Custom_NN.")
-        print("Not yet implemented.")                   #TODO: Write code to run your custon neural net.
-        return None
+        model = trainModel(data)
+        return model.predict(data)
     elif ALGORITHM == "tf_net":
         print("Testing TF_NN.")
         print("Not yet implemented.")                   #TODO: Write code to run your keras neural net.
