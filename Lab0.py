@@ -40,11 +40,11 @@ class NeuralNetwork_2Layer():
 
     # Activation function.
     def __sigmoid(self, x):
-        return 1 / (1 + math.exp(-x))
+        return 1 / (1 + np.exp(-x))
 
     # Activation prime function.
     def __sigmoidDerivative(self, x):
-        return math.exp(-x) / math.pow(1 + math.exp(-x), 2)
+        return np.exp(-x) / (1 + np.exp(-x))**2
 
     # Batch generator for mini-batches. Not randomized.
     def __batchGenerator(self, l, n):
@@ -55,33 +55,36 @@ class NeuralNetwork_2Layer():
         return 0.5 * (math.pow(predicted_y, 2) - math.pow(expected_y, 2))
 
     # Training with backpropagation.
-    def train(self, xVals, yVals, epochs = 100000, minibatches = True, mbs = 100):
+    def train(self, xVals, yVals, epochs = 100000, minibatches = False, mbs = 100):
         #TODO: Implement backprop. allow minibatches. mbs should specify the size of each minibatch.
         #CurrentLayer will keep track of the layer we are in.
-        
-        for i in range(epochs):
-            forwardPassResult = self.predict(xVals)
-            errors = []
-            l2_errors = []
-            l1_errors = []
-            l2_deltas = []
-            l1_deltas = []
-            for value in forwardPassResult:
-                errors.append(keras.losses.mean_squared_error(value, yVals[i]))
-                currentError = yVals[i] - value
-                l2_errors.append(currentError)
-                l2_deltas.append(currentError * self.__sigmoidDerivative(value))
-                currentError = np.dot(np.array(l2_deltas), self.W2)
-                l1_errors.append(currentError)
-                l1_deltas.append(currentError * self.__sigmoidDerivative(value))
-            #Find adjustments.
-            l1_adjust = np.dot(self.W1, np.array(l1_deltas))
-            l2_adjust = np.dot(self.W2, np.array(l2_deltas))
-            for i in range(0, len(self.W1)):
-                self.W1[i] = self.W1[i] + l1_adjust[i]
-            
-            for i in range(0, len(self.W2)):
-                self.W2[i] = self.W2[i] + l2_adjust[i]
+        for _ in range(epochs):
+            if minibatches:
+                inputSize = xVals.shape[0]
+                ind = 0
+                while ind < inputSize:
+                    l1_out, l2_out = self.__forward(xVals[ind:ind+mbs])
+                    l2_errors = self.loss_derivative(l2_out, yVals[ind:ind+mbs])
+                    l2_deltas = l2_errors * self.__sigmoidDerivative(l2_out)
+                    l1_errors = np.dot(l2_deltas, np.transpose(self.W2))
+                    l1_deltas = l1_errors * self.__sigmoidDerivative(l1_out)
+                    l1_adjust = np.dot(self.W1, np.array(l1_deltas))
+                    l2_adjust = np.dot(self.W2, np.array(l2_deltas))
+                    self.W1 = self.W1 + l1_adjust
+                    self.W2 = self.W2 + l2_adjust
+                    ind += mbs
+            else:
+                inputSize = xVals.shape[0]
+                for ind in range(inputSize):
+                    l1_out, l2_out = self.__forward(xVals[ind].flatten())
+                    l2_errors = self.loss_derivative(yVals[ind], l2_out)
+                    l2_deltas = l2_errors * self.__sigmoidDerivative(l2_out)
+                    l1_errors = np.dot(l2_deltas, np.transpose(self.W2))
+                    l1_deltas = l1_errors * self.__sigmoidDerivative(l1_out)
+                    l1_adjust = np.dot(np.transpose(xVals[ind].flatten(), l1_deltas)) * self.lr
+                    l2_adjust = np.dot(np.transpose(l1_out), l2_deltas) * self.lr 
+                    self.W1 = self.W1 + l1_adjust
+                    self.W2 = self.W2 + l2_adjust
 
     # Forward pass.
     def __forward(self, input):
@@ -93,6 +96,12 @@ class NeuralNetwork_2Layer():
     def predict(self, xVals):
         _, layer2 = self.__forward(xVals)
         return layer2
+    
+    def loss(self, y_expected, y_predicted):
+        return np.square((y_expected - y_predicted), 2).mean(axis=0) #Mean for every column.
+
+    def loss_derivative(self, y_expected, y_predicted):
+        return y_expected - y_predicted
 
 
 
@@ -144,7 +153,7 @@ def trainModel(data):
     if ALGORITHM == "guesser":
         return None   # Guesser has no model, as it is just guessing.
     elif ALGORITHM == "custom_net":
-        model = NeuralNetwork_2Layer(100, 10, 10)
+        model = NeuralNetwork_2Layer(28*28, 10, 10)
         model.train(xTrain, yTrain)                #TODO: Write code to build and train your custon neural net.
         return model
     elif ALGORITHM == "tf_net":
