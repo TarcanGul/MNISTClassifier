@@ -64,7 +64,7 @@ class NeuralNetwork_2Layer():
                 ind = 0
                 while ind < inputSize:
                     l1_out, l2_out = self.__forward(xVals[ind:ind+mbs])
-                    l2_errors = self.loss_derivative(l2_out, yVals[ind:ind+mbs])
+                    l2_errors = self.loss_derivative(yVals[ind:ind+mbs],l2_out)
                     l2_deltas = l2_errors * self.__sigmoidDerivative(l2_out)
                     l1_errors = np.dot(l2_deltas, np.transpose(self.W2))
                     l1_deltas = l1_errors * self.__sigmoidDerivative(l1_out)
@@ -81,10 +81,10 @@ class NeuralNetwork_2Layer():
                     l2_deltas = l2_errors * self.__sigmoidDerivative(l2_out)
                     l1_errors = np.dot(l2_deltas, np.transpose(self.W2))
                     l1_deltas = l1_errors * self.__sigmoidDerivative(l1_out)
-                    l1_adjust = np.dot(np.transpose(xVals[ind].flatten(), l1_deltas)) * self.lr
+                    l1_adjust = np.dot(np.transpose(xVals[ind].flatten()), l1_deltas) * self.lr
                     l2_adjust = np.dot(np.transpose(l1_out), l2_deltas) * self.lr 
-                    self.W1 = self.W1 + l1_adjust
-                    self.W2 = self.W2 + l2_adjust
+                    self.W1 += l1_adjust
+                    self.W2 += l2_adjust
 
     # Forward pass.
     def __forward(self, input):
