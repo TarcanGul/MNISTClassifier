@@ -22,8 +22,8 @@ IMAGE_SIZE = 784
 
 # Use these to set the algorithm to use.
 #ALGORITHM = "guesser"
-ALGORITHM = "custom_net"
-#ALGORITHM = "tf_net"
+#ALGORITHM = "custom_net"
+ALGORITHM = "tf_net"
 
 
 
@@ -188,11 +188,11 @@ def trainModel(data):
         inShape = (28,28,1) #Images that is 28x28 pixels.
         lossType = keras.losses.categorical_crossentropy
         opt = tf.train.AdamOptimizer()
-        model.add(keras.layers.Conv2D(32, kernel_size = (3,3), activation="sigmoid", input_shape = inShape))
-        model.add(keras.layers.Conv2D(64, kernel_size = (3,3), activation="sigmoid"))
+        model.add(keras.layers.Conv2D(32, kernel_size = (3,3), activation="relu", input_shape = inShape))
+        model.add(keras.layers.Conv2D(64, kernel_size = (3,3), activation="relu"))
         model.add(keras.layers.MaxPooling2D(pool_size = (2,2)))
         model.add(keras.layers.Flatten())
-        model.add(keras.layers.Dense(128, activation="sigmoid"))
+        model.add(keras.layers.Dense(128, activation="relu"))
         model.add(keras.layers.Dense(10, activation="softmax"))
         model.compile(optimizer = opt, loss = lossType)
         #Train model
