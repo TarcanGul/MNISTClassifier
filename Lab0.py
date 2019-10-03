@@ -125,18 +125,41 @@ def guesserClassifier(xTest):
     return np.array(ans)
 
 '''
+Convolutional neural network implemented by Keras. 
+
+How it is implemented: The CNN built starts with two convolutional layers, then the signal goes through a max pooling layer of 2x2
+then it is flattened for processing in fully connected neural networks the end. At first I used sigmoid as an activation but turns
+out I only got 9%. I changed the activation from sigmoid to ReLu and it reached 98%. The reason I think ReLu works better is because
+it doesn't allow negative values. At the last fully connected layer, we used softmax to get a probability distribution. These
+distributions turned into valid outputs using the findMaxIndex helper function.
+Cross entropy is used for loss function because we discussed it was a good choice for image processing in class.
+'''
+def buildCNNModel(xTrain, yTrain):
+    model = keras.Sequential()
+    inShape = (28,28,1) #Images that is 28x28 pixels.
+    lossType = keras.losses.categorical_crossentropy
+    opt = tf.train.AdamOptimizer()
+    model.add(keras.layers.Conv2D(32, kernel_size = (3,3), activation="relu", input_shape = inShape))
+    model.add(keras.layers.Conv2D(64, kernel_size = (3,3), activation="relu"))
+    model.add(keras.layers.MaxPooling2D(pool_size = (2,2)))
+    model.add(keras.layers.Flatten())
+    model.add(keras.layers.Dense(128, activation="relu"))
+    model.add(keras.layers.Dense(10, activation="softmax"))
+    model.compile(optimizer = opt, loss = lossType)
+    #Train model
+    model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=1, batch_size=100)
+    return model
+
+'''
 Helper Functions
 '''
-
-#Returns the index where the max occurs. Useful in shaping the prediction one -hot encoding.
+#Returns the index where the max occurs. Useful in shaping the prediction one-hot encoding.
 def findMaxIndex(array):
     max_index = 0
     for i in range(1, len(array)):
         if array[i] > array[max_index]:
             max_index = i
     return max_index
-
-
 
 #=========================<Pipeline Functions>==================================
 
@@ -163,8 +186,10 @@ def preprocessData(raw):
     ((xTrain, yTrain), (xTest, yTest)) = reduced_value        
     yTrainP = to_categorical(yTrain, NUM_CLASSES)
     yTestP = to_categorical(yTest, NUM_CLASSES)
-    xTrain = xTrain.reshape([60000, 784])
-    xTest = xTest.reshape([10000, 784])
+    #Flattening for the custom net
+    if ALGORITHM == "custom_net":
+        xTrain = xTrain.reshape([60000, 784])
+        xTest = xTest.reshape([10000, 784])
     print("New shape of xTrain dataset: %s." % str(xTrain.shape))
     print("New shape of xTest dataset: %s." % str(xTest.shape))
     print("New shape of yTrain dataset: %s." % str(yTrainP.shape))
@@ -181,33 +206,10 @@ def trainModel(data):
         model = NeuralNetwork_2Layer(inputSize=28*28, neuronsPerLayer=256, outputSize=10)
         model.train(xTrain, yTrain)                #TODO: Write code to build and train your custon neural net.
         return model
-    '''
-    Convolutional neural network implemented by Keras. 
-
-    How it is implemented: The CNN built starts with two convolutional layers, then the signal goes through a max pooling layer of 2x2
-    then it is flattened for processing in fully connected neural networks the end. At first I used sigmoid as an activation but turns
-    out I only got 9%. I changed the activation from sigmoid to ReLu and it reached 98%. The reason I think ReLu works better is because
-    it doesn't allow negative values. At the last fully connected layer, we used softmax to get a probability distribution. These
-    distributions turned into valid outputs using the findMaxIndex helper function.
-    Cross entropy is used for loss function because we discussed it was a good choice in class.
-    '''
     elif ALGORITHM == "tf_net":
         print("Building and training TF_NN.")
         #Build model
-        model = keras.Sequential()
-        inShape = (28,28,1) #Images that is 28x28 pixels.
-        lossType = keras.losses.categorical_crossentropy
-        opt = tf.train.AdamOptimizer()
-        model.add(keras.layers.Conv2D(32, kernel_size = (3,3), activation="relu", input_shape = inShape))
-        model.add(keras.layers.Conv2D(64, kernel_size = (3,3), activation="relu"))
-        model.add(keras.layers.MaxPooling2D(pool_size = (2,2)))
-        model.add(keras.layers.Flatten())
-        model.add(keras.layers.Dense(128, activation="relu"))
-        model.add(keras.layers.Dense(10, activation="softmax"))
-        model.compile(optimizer = opt, loss = lossType)
-        #Train model
-        model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=1, batch_size=100)
-        return model
+        return buildCNNModel(xTrain, yTrain)
     else:
         raise ValueError("Algorithm not recognized.")
 
@@ -219,7 +221,8 @@ def runModel(data, model):
     elif ALGORITHM == "custom_net":
         return model.predict(data)
     elif ALGORITHM == "tf_net":
-        preds_returned = model.predict(data.reshape(10000,28, 28, 1))
+        #Adding a new dimension for keras.
+        preds_returned = model.predict(data.reshape(10000,28,28,1))
         preds_actual = []
         for pred in preds_returned:
             max_index = findMaxIndex(pred)
