@@ -55,36 +55,30 @@ class NeuralNetwork_2Layer():
         return 0.5 * (math.pow(predicted_y, 2) - math.pow(expected_y, 2))
 
     # Training with backpropagation.
-    def train(self, xVals, yVals, epochs = 100000, minibatches = False, mbs = 100):
+    def train(self, xVals, yVals, epochs = 3, minibatches = True, mbs = 100):
         #TODO: Implement backprop. allow minibatches. mbs should specify the size of each minibatch.
         #CurrentLayer will keep track of the layer we are in.
         for _ in range(epochs):
-            if minibatches:
-                inputSize = xVals.shape[0]
-                ind = 0
-                while ind < inputSize:
-                    l1_out, l2_out = self.__forward(xVals[ind:ind+mbs])
-                    l2_errors = self.loss_derivative(yVals[ind:ind+mbs],l2_out)
-                    l2_deltas = l2_errors * self.__sigmoidDerivative(l2_out)
-                    l1_errors = np.dot(l2_deltas, np.transpose(self.W2))
-                    l1_deltas = l1_errors * self.__sigmoidDerivative(l1_out)
-                    l1_adjust = np.dot(self.W1, np.array(l1_deltas))
-                    l2_adjust = np.dot(self.W2, np.array(l2_deltas))
-                    self.W1 = self.W1 + l1_adjust
-                    self.W2 = self.W2 + l2_adjust
-                    ind += mbs
-            else:
-                inputSize = xVals.shape[0]
-                for ind in range(inputSize):
-                    l1_out, l2_out = self.__forward(xVals[ind].flatten())
-                    l2_errors = self.loss_derivative(yVals[ind], l2_out)
-                    l2_deltas = l2_errors * self.__sigmoidDerivative(l2_out)
-                    l1_errors = np.dot(l2_deltas, np.transpose(self.W2))
-                    l1_deltas = l1_errors * self.__sigmoidDerivative(l1_out)
-                    l1_adjust = np.dot(np.transpose(xVals[ind].flatten()), l1_deltas) * self.lr
-                    l2_adjust = np.dot(np.transpose(l1_out), l2_deltas) * self.lr 
-                    self.W1 += l1_adjust
-                    self.W2 += l2_adjust
+            inputSize = xVals.shape[0]
+            if not minibatches:
+                mbs = 1
+            x_gen = self.__batchGenerator(xVals, mbs)
+            y_gen = self.__batchGenerator(yVals, mbs)
+            iterations = int(inputSize / mbs)
+            for i in range(iterations):
+                x_currBatch = next(x_gen)
+                y_currBatch = next(y_gen)
+                l1_out, l2_out = self.__forward(x_currBatch)
+                l2_errors = self.loss_derivative(y_currBatch, l2_out)
+                l2_deltas = l2_errors * self.__sigmoidDerivative(l2_out)
+                l1_errors = np.dot(l2_deltas, np.transpose(self.W2))
+                l1_deltas = l1_errors * self.__sigmoidDerivative(l1_out)
+                l1_adjust = np.dot(np.transpose(x_currBatch), l1_deltas) * self.lr
+                l2_adjust = np.dot(np.transpose(l1_out), l2_deltas) * self.lr 
+                self.W1 += l1_adjust
+                self.W2 += l2_adjust
+            print("Epoch {}/{} done.".format(_ + 1, epochs))
+
 
     # Forward pass.
     def __forward(self, input):
@@ -95,8 +89,24 @@ class NeuralNetwork_2Layer():
     # Predict.
     def predict(self, xVals):
         _, layer2 = self.__forward(xVals)
-        return layer2
-    
+        prediction_batch = []
+        for i in range(layer2.shape[0]):
+            index = self.__findMaxIndex(layer2[i])
+            prediction = [0] * 10
+            prediction[index] = 1
+            prediction_batch.append(prediction)
+        
+        return np.array(prediction_batch)
+    '''
+    Returns the index where the max occurs. Useful in shaping the prediction one -hot encoding.
+    '''
+    def __findMaxIndex(self, array):
+        max_index = 0
+        for i in range(len(array)):
+            if array[i] > array[max_index]:
+                max_index = i
+        return max_index
+
     def loss(self, y_expected, y_predicted):
         return np.square((y_expected - y_predicted), 2).mean(axis=0) #Mean for every column.
 
@@ -135,11 +145,14 @@ def reduceRange(raw):
     yTest = raw[1][1]
     return ((xTrain*MULTIPLIER, yTrain*MULTIPLIER), (xTest*MULTIPLIER, yTest*MULTIPLIER))
 
+#Do flattening here.
 def preprocessData(raw):
     reduced_value = reduceRange(raw)
     ((xTrain, yTrain), (xTest, yTest)) = reduced_value        
     yTrainP = to_categorical(yTrain, NUM_CLASSES)
     yTestP = to_categorical(yTest, NUM_CLASSES)
+    xTrain = xTrain.reshape([60000, 784])
+    xTest = xTest.reshape([10000, 784])
     print("New shape of xTrain dataset: %s." % str(xTrain.shape))
     print("New shape of xTest dataset: %s." % str(xTest.shape))
     print("New shape of yTrain dataset: %s." % str(yTrainP.shape))
@@ -153,13 +166,26 @@ def trainModel(data):
     if ALGORITHM == "guesser":
         return None   # Guesser has no model, as it is just guessing.
     elif ALGORITHM == "custom_net":
-        model = NeuralNetwork_2Layer(28*28, 10, 10)
+        model = NeuralNetwork_2Layer(inputSize=28*28, neuronsPerLayer=256, outputSize=10)
         model.train(xTrain, yTrain)                #TODO: Write code to build and train your custon neural net.
         return model
     elif ALGORITHM == "tf_net":
         print("Building and training TF_NN.")
-        print("Not yet implemented.")                   #TODO: Write code to build and train your keras neural net.
-        return None
+        #Build model
+        model = keras.Sequential()
+        inShape = (28,28,1) #Images that is 28x28 pixels.
+        lossType = keras.losses.categorical_crossentropy
+        opt = tf.train.AdamOptimizer()
+        model.add(keras.layers.Conv2D(32, kernel_size = (3,3), activation="sigmoid", input_shape = inShape))
+        model.add(keras.layers.Conv2D(64, kernel_size = (3,3), activation="sigmoid"))
+        model.add(keras.layers.MaxPooling2D(pool_size = (2,2)))
+        model.add(keras.layers.Flatten())
+        model.add(keras.layers.Dense(128, activation="sigmoid"))
+        model.add(keras.layers.Dense(10, activation="softmax"))
+        model.compile(optimizer = opt, loss = lossType)
+        #Train model
+        model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=1)
+        return model
     else:
         raise ValueError("Algorithm not recognized.")
 
@@ -169,12 +195,9 @@ def runModel(data, model):
     if ALGORITHM == "guesser":
         return guesserClassifier(data)
     elif ALGORITHM == "custom_net":
-        model = trainModel(data)
         return model.predict(data)
     elif ALGORITHM == "tf_net":
-        print("Testing TF_NN.")
-        print("Not yet implemented.")                   #TODO: Write code to run your keras neural net.
-        return None
+        return model.predict(data)
     else:
         raise ValueError("Algorithm not recognized.")
 
