@@ -27,7 +27,18 @@ ALGORITHM = "custom_net"
 
 
 
+'''
+The custom neural network with 2 layers (1 hidden layer). 
 
+How it is implemented: Before doing the train method, preprocessing is done where we flatten the image data
+from 28*28 images to 784*1. This helps because now we can have 784 input values coming to our neural network.
+The train() method uses backpropagation and the calculations are taken from the class slides. Minibatches are implemented
+for faster epoch times and correctly calculating the matrix transpositions we need in backpropagation.
+For activation, sigmoid is used.
+For loss, MSE (mean squared error) is used.
+At prediction stage, the output was a probability distribution, so we added a new function to transform the 
+probablity distribution to a valid output for one-hot-encoding.
+'''
 
 class NeuralNetwork_2Layer():
     def __init__(self, inputSize, outputSize, neuronsPerLayer, learningRate = 0.1):
