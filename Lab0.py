@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.utils import to_categorical
 import random
+import statistics
 
 
 # Setting random seeds to keep everything deterministic.
@@ -22,8 +23,8 @@ IMAGE_SIZE = 784
 
 # Use these to set the algorithm to use.
 #ALGORITHM = "guesser"
-ALGORITHM = "custom_net"
-#ALGORITHM = "tf_net"
+#ALGORITHM = "custom_net"
+ALGORITHM = "tf_net"
 
 
 
@@ -36,7 +37,7 @@ The train() method uses backpropagation and the calculations are taken from the 
 for faster epoch times and correctly calculating the matrix transpositions we need in backpropagation.
 For activation, sigmoid is used.
 For loss, MSE (mean squared error) is used.
-At prediction stage, the output was a probability distribution, so we added a new function to transform the 
+At prediction stage, the output was a probability distribution, so we added and used findMaxIndex function to transform the 
 probablity distribution to a valid output for one-hot-encoding.
 '''
 
@@ -133,6 +134,7 @@ out I only got 9%. I changed the activation from sigmoid to ReLu and it reached 
 it doesn't allow negative values. At the last fully connected layer, we used softmax to get a probability distribution. These
 distributions turned into valid outputs using the findMaxIndex helper function.
 Cross entropy is used for loss function because we discussed it was a good choice for image processing in class.
+Only preprocessing done is turning y values to one-hot encoding. Flattening is only needed when we have a fully connected layer.
 '''
 def buildCNNModel(xTrain, yTrain):
     model = keras.Sequential()
@@ -147,7 +149,7 @@ def buildCNNModel(xTrain, yTrain):
     model.add(keras.layers.Dense(10, activation="softmax"))
     model.compile(optimizer = opt, loss = lossType)
     #Train model
-    model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=1, batch_size=100)
+    model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=3, batch_size=100)
     return model
 
 '''
@@ -245,8 +247,9 @@ def evalResults(data, preds):   #TODO: Add F1 score confusion matrix here.
     f1_score = getF1Score(preds, yTest)
     print("Classifier algorithm: %s" % ALGORITHM)
     print("Classifier accuracy: %f%%" % (accuracy * 100))
-    print()
+    print("F1 score: {}".format(f1_score))
 
+#Calculates f1 score given predictions and expected results.
 def getF1Score(preds, yTest):
     c_matrix = np.zeros(shape=(NUM_CLASSES, NUM_CLASSES))
     # p => predicted 
@@ -265,6 +268,13 @@ def getF1Score(preds, yTest):
         false_negatives = sum([row[c] for row in c_matrix]) - true_positives
         recall = true_positives / (true_positives + false_negatives)
         calculations.append((precision, recall))
+    
+    #Get average of precision and recall.
+    avg_precision = statistics.mean([c[0] for c in calculations])
+    avg_recall = statistics.mean([c[1] for c in calculations])
+
+    #Calculate F1 Score
+    return 2 * (avg_precision * avg_recall) / (avg_precision + avg_recall)
 
 #=========================<Main>================================================
 
