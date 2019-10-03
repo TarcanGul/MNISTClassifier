@@ -22,8 +22,8 @@ IMAGE_SIZE = 784
 
 # Use these to set the algorithm to use.
 #ALGORITHM = "guesser"
-#ALGORITHM = "custom_net"
-ALGORITHM = "tf_net"
+ALGORITHM = "custom_net"
+#ALGORITHM = "tf_net"
 
 
 
@@ -242,11 +242,29 @@ def evalResults(data, preds):   #TODO: Add F1 score confusion matrix here.
     for i in range(preds.shape[0]):
         if np.array_equal(preds[i], yTest[i]):   acc = acc + 1
     accuracy = acc / preds.shape[0]
+    f1_score = getF1Score(preds, yTest)
     print("Classifier algorithm: %s" % ALGORITHM)
     print("Classifier accuracy: %f%%" % (accuracy * 100))
     print()
 
+def getF1Score(preds, yTest):
+    c_matrix = np.zeros(shape=(NUM_CLASSES, NUM_CLASSES))
+    # p => predicted 
+    # t => truth
+    for i in range(preds.shape[0]):
+        p = findMaxIndex(preds[i]) #Finding which index 1 occurs.
+        t = findMaxIndex(yTest[i])
+        c_matrix[p, t] += 1
 
+    #Will have (precision, recall) pairs for each class
+    calculations = []
+    for c in range(NUM_CLASSES):
+        true_positives = c_matrix[c][c]
+        positives = sum(c_matrix[c]) # Positives = true pos + false pos
+        precision = true_positives / positives
+        false_negatives = sum([row[c] for row in c_matrix]) - true_positives
+        recall = true_positives / (true_positives + false_negatives)
+        calculations.append((precision, recall))
 
 #=========================<Main>================================================
 
