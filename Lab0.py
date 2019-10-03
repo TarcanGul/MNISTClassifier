@@ -23,12 +23,19 @@ IMAGE_SIZE = 784
 
 # Use these to set the algorithm to use.
 #ALGORITHM = "guesser"
-#ALGORITHM = "custom_net"
-ALGORITHM = "tf_net"
-
-
+ALGORITHM = "custom_net"
+#ALGORITHM = "tf_net"
 
 '''
+CS 390 NIP Project 1
+Author: Tarcan Gul
+
+Extra Credits Done:
+N Layer Custom NN
+99% Accuracy in CNN
+
+**
+
 The custom neural network with 2 layers (1 hidden layer). 
 
 How it is implemented: Before doing the train method, preprocessing is done where we flatten the image data
@@ -42,13 +49,23 @@ probablity distribution to a valid output for one-hot-encoding.
 '''
 
 class NeuralNetwork_2Layer():
-    def __init__(self, inputSize, outputSize, neuronsPerLayer, learningRate = 0.1):
+    def __init__(self, inputSize, outputSize, neuronsPerLayer, numLayers = 2, learningRate = 0.1):
+        if numLayers < 2:
+            raise Exception("Number of layers should be at least 2.")
+        print("Building a neural network with {} layers that has {} neurons in hidden layers, {} inputs and {} outputs.".format(numLayers, neuronsPerLayer, inputSize, outputSize))
         self.inputSize = inputSize
         self.outputSize = outputSize
         self.neuronsPerLayer = neuronsPerLayer
         self.lr = learningRate
-        self.W1 = np.random.randn(self.inputSize, self.neuronsPerLayer)
-        self.W2 = np.random.randn(self.neuronsPerLayer, self.outputSize)
+        self.numLayers = numLayers
+        self.layers = []
+        for i in range(numLayers):
+            if i == 0:
+                self.layers.append(np.random.randn(inputSize, neuronsPerLayer))
+            elif i == (numLayers - 1):
+                self.layers.append(np.random.randn(neuronsPerLayer, outputSize))
+            else:
+                self.layers.append(np.random.randn(neuronsPerLayer, neuronsPerLayer))
 
     # Activation function.
     def __sigmoid(self, x):
@@ -71,37 +88,64 @@ class NeuralNetwork_2Layer():
         for _ in range(epochs):
             inputSize = xVals.shape[0]
             if not minibatches:
-                mbs = 1
-            x_gen = self.__batchGenerator(xVals, mbs)
-            y_gen = self.__batchGenerator(yVals, mbs)
-            iterations = int(inputSize / mbs)
-            for i in range(iterations):
-                x_currBatch = next(x_gen)
-                y_currBatch = next(y_gen)
-                l1_out, l2_out = self.__forward(x_currBatch)
-                l2_errors = self.loss_derivative(y_currBatch, l2_out)
-                l2_deltas = l2_errors * self.__sigmoidDerivative(l2_out)
-                l1_errors = np.dot(l2_deltas, np.transpose(self.W2))
-                l1_deltas = l1_errors * self.__sigmoidDerivative(l1_out)
-                l1_adjust = np.dot(np.transpose(x_currBatch), l1_deltas) * self.lr
-                l2_adjust = np.dot(np.transpose(l1_out), l2_deltas) * self.lr 
-                self.W1 += l1_adjust
-                self.W2 += l2_adjust
+                self.backpropagate(xVals, yVals, 1)
+            else:
+                self.backpropagate(xVals, yVals, mbs)
             print("Epoch {}/{} done.".format(_ + 1, epochs))
 
+    def backpropagate(self, xVals, yVals, mbs):
+        inputSize = xVals.shape[0]
+
+        x_gen = self.__batchGenerator(xVals, mbs)
+        y_gen = self.__batchGenerator(yVals, mbs)
+        iterations = int(inputSize / mbs)
+        for i in range(iterations):
+            x_currBatch = next(x_gen)
+            y_currBatch = next(y_gen)
+            layer_outs = self.__forward(x_currBatch)
+            adjustments = []
+            last_delta = None
+            last_error = None
+            #Find errors and deltas for each layer.
+            for layer in range(self.numLayers-1, -1, -1):
+                if layer == self.numLayers - 1:
+                    layer_error = self.loss_derivative(y_currBatch, layer_outs[layer])
+                    layer_delta = layer_error * self.__sigmoidDerivative(layer_outs[layer])
+                    layer_adjust = np.dot(np.transpose(layer_outs[layer - 1]), layer_delta) * self.lr
+                    adjustments.insert(0, layer_adjust)
+                elif layer == 0:
+                    layer_error = np.dot(last_delta, np.transpose(self.layers[layer+1]))
+                    layer_delta = layer_error * self.__sigmoidDerivative(layer_outs[layer])
+                    layer_adjust = np.dot(np.transpose(x_currBatch), layer_delta) * self.lr
+                    adjustments.insert(0, layer_adjust)
+                else:
+                    layer_error = np.dot(last_delta, np.transpose(self.layers[layer+1]))
+                    layer_delta = layer_error * self.__sigmoidDerivative(layer_outs[layer])
+                    layer_adjust = np.dot(np.transpose(layer_outs[layer - 1]), layer_delta) * self.lr
+                    adjustments.insert(0, layer_adjust)
+                last_delta = layer_delta
+                last_error = layer_error
+            for layer in range(self.numLayers):
+                self.layers[layer] += adjustments[layer]
 
     # Forward pass.
     def __forward(self, input):
-        layer1 = self.__sigmoid(np.dot(input, self.W1))
-        layer2 = self.__sigmoid(np.dot(layer1, self.W2))
-        return layer1, layer2
+        layer_outs = []
+        for i in range(self.numLayers):
+            if i == 0:
+                layer_outs.append(self.__sigmoid(np.dot(input, self.layers[0])))
+            else:
+                layer_outs.append(self.__sigmoid(np.dot(layer_outs[i-1], self.layers[i])))
+            
+        return layer_outs
 
     # Predict.
     def predict(self, xVals):
-        _, layer2 = self.__forward(xVals)
+        layerOuts = self.__forward(xVals)
+        lastLayer = layerOuts[self.numLayers - 1] 
         prediction_batch = []
-        for i in range(layer2.shape[0]):
-            index = findMaxIndex(layer2[i])
+        for i in range(lastLayer.shape[0]):
+            index = findMaxIndex(lastLayer[i])
             prediction = [0] * 10
             prediction[index] = 1
             prediction_batch.append(prediction)
