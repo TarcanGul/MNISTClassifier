@@ -67,8 +67,6 @@ class NeuralNetwork_2Layer():
 
     # Training with backpropagation.
     def train(self, xVals, yVals, epochs = 3, minibatches = True, mbs = 100):
-        #TODO: Implement backprop. allow minibatches. mbs should specify the size of each minibatch.
-        #CurrentLayer will keep track of the layer we are in.
         for _ in range(epochs):
             inputSize = xVals.shape[0]
             if not minibatches:
@@ -102,21 +100,12 @@ class NeuralNetwork_2Layer():
         _, layer2 = self.__forward(xVals)
         prediction_batch = []
         for i in range(layer2.shape[0]):
-            index = self.__findMaxIndex(layer2[i])
+            index = findMaxIndex(layer2[i])
             prediction = [0] * 10
             prediction[index] = 1
             prediction_batch.append(prediction)
         
         return np.array(prediction_batch)
-    '''
-    Returns the index where the max occurs. Useful in shaping the prediction one -hot encoding.
-    '''
-    def __findMaxIndex(self, array):
-        max_index = 0
-        for i in range(len(array)):
-            if array[i] > array[max_index]:
-                max_index = i
-        return max_index
 
     def loss(self, y_expected, y_predicted):
         return np.square((y_expected - y_predicted), 2).mean(axis=0) #Mean for every column.
@@ -134,6 +123,18 @@ def guesserClassifier(xTest):
         pred[random.randint(0, 9)] = 1
         ans.append(pred)
     return np.array(ans)
+
+'''
+Helper Functions
+'''
+
+#Returns the index where the max occurs. Useful in shaping the prediction one -hot encoding.
+def findMaxIndex(array):
+    max_index = 0
+    for i in range(1, len(array)):
+        if array[i] > array[max_index]:
+            max_index = i
+    return max_index
 
 
 
@@ -154,7 +155,7 @@ def reduceRange(raw):
     yTrain = raw[0][1]
     xTest = raw[1][0]
     yTest = raw[1][1]
-    return ((xTrain*MULTIPLIER, yTrain*MULTIPLIER), (xTest*MULTIPLIER, yTest*MULTIPLIER))
+    return ((xTrain*MULTIPLIER, yTrain), (xTest*MULTIPLIER, yTest))
 
 #Do flattening here.
 def preprocessData(raw):
@@ -195,7 +196,7 @@ def trainModel(data):
         model.add(keras.layers.Dense(10, activation="softmax"))
         model.compile(optimizer = opt, loss = lossType)
         #Train model
-        model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=1)
+        model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=1, batch_size=100)
         return model
     else:
         raise ValueError("Algorithm not recognized.")
@@ -208,7 +209,15 @@ def runModel(data, model):
     elif ALGORITHM == "custom_net":
         return model.predict(data)
     elif ALGORITHM == "tf_net":
-        return model.predict(data)
+        preds_returned = model.predict(data.reshape(10000,28, 28, 1))
+        preds_actual = []
+        for pred in preds_returned:
+            max_index = findMaxIndex(pred)
+            result = [0] * 10
+            result[max_index] = 1
+            preds_actual.append(result)
+
+        return np.array(preds_actual)
     else:
         raise ValueError("Algorithm not recognized.")
 
