@@ -181,6 +181,16 @@ def trainModel(data):
         model = NeuralNetwork_2Layer(inputSize=28*28, neuronsPerLayer=256, outputSize=10)
         model.train(xTrain, yTrain)                #TODO: Write code to build and train your custon neural net.
         return model
+    '''
+    Convolutional neural network implemented by Keras. 
+
+    How it is implemented: The CNN built starts with two convolutional layers, then the signal goes through a max pooling layer of 2x2
+    then it is flattened for processing in fully connected neural networks the end. At first I used sigmoid as an activation but turns
+    out I only got 9%. I changed the activation from sigmoid to ReLu and it reached 98%. The reason I think ReLu works better is because
+    it doesn't allow negative values. At the last fully connected layer, we used softmax to get a probability distribution. These
+    distributions turned into valid outputs using the findMaxIndex helper function.
+    Cross entropy is used for loss function because we discussed it was a good choice in class.
+    '''
     elif ALGORITHM == "tf_net":
         print("Building and training TF_NN.")
         #Build model
