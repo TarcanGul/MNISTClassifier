@@ -6,7 +6,7 @@ from tensorflow import keras
 from tensorflow.keras.utils import to_categorical
 import random
 import statistics
-
+import logging
 
 # Setting random seeds to keep everything deterministic.
 random.seed(1618)
@@ -23,8 +23,8 @@ IMAGE_SIZE = 784
 
 # Use these to set the algorithm to use.
 #ALGORITHM = "guesser"
-ALGORITHM = "custom_net"
-#ALGORITHM = "tf_net"
+#LGORITHM = "custom_net"
+ALGORITHM = "tf_net"
 
 '''
 CS 390 NIP Project 1
@@ -32,7 +32,6 @@ Author: Tarcan Gul
 
 Extra Credits Done:
 N Layer Custom NN
-99% Accuracy in CNN
 
 **
 
@@ -170,13 +169,10 @@ def guesserClassifier(xTest):
     return np.array(ans)
 
 '''
-Convolutional neural network implemented by Keras. 
+Custom neural network implemented by Keras. 
 
-How it is implemented: The CNN built starts with two convolutional layers, then the signal goes through a max pooling layer of 2x2
-then it is flattened for processing in fully connected neural networks the end. At first I used sigmoid as an activation but turns
-out I only got 9%. I changed the activation from sigmoid to ReLu and it reached 98%. The reason I think ReLu works better is because
-it doesn't allow negative values. At the last fully connected layer, we used softmax to get a probability distribution. These
-distributions turned into valid outputs using the findMaxIndex helper function.
+How it is implemented: The NN has two layers. The first layer (hidden layer) has 128 neurons, and the last layer has 10 neurons (because there are 10 classes).
+ReLu is considered as a good activation function for image processing, thus it is used in the hidden layer.
 Cross entropy is used for loss function because we discussed it was a good choice for image processing in class.
 Only preprocessing done is turning y values to one-hot encoding. Flattening is only needed when we have a fully connected layer.
 '''
@@ -185,15 +181,12 @@ def buildCNNModel(xTrain, yTrain):
     inShape = (28,28,1) #Images that is 28x28 pixels.
     lossType = keras.losses.categorical_crossentropy
     opt = tf.train.AdamOptimizer()
-    model.add(keras.layers.Conv2D(32, kernel_size = (3,3), activation="relu", input_shape = inShape))
-    model.add(keras.layers.Conv2D(64, kernel_size = (3,3), activation="relu"))
-    model.add(keras.layers.MaxPooling2D(pool_size = (2,2)))
     model.add(keras.layers.Flatten())
     model.add(keras.layers.Dense(128, activation="relu"))
     model.add(keras.layers.Dense(10, activation="softmax"))
     model.compile(optimizer = opt, loss = lossType)
     #Train model
-    model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=3, batch_size=100)
+    model.fit(xTrain.reshape([-1,28,28,1]), yTrain.reshape([-1, 10]), epochs=8, batch_size=100)
     return model
 
 '''
